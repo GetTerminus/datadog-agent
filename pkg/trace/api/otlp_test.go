@@ -5,112 +5,82 @@
 
 package api
 
-import (
-	"fmt"
-	"net/http"
-	"strings"
-	"testing"
-	"time"
-	"unicode"
+/*
+func configOTLPTestSpan(span pdata.Span, start uint64) pdata.Span {
+	span.SetTraceID(otlpTestTraceID)
+	span.SetSpanID(otlpTestSpanID)
+	span.SetTraceState(pdata.TraceState("state"))
+	span.SetName("/path")
+	span.SetKind(pdata.SpanKindServer)
+	span.SetStartTimestamp(pdata.Timestamp(start))
+	span.SetEndTimestamp(pdata.Timestamp(start + 200000000))
+	span.Attributes().Insert("name", pdata.NewAttributeValueString("john"))
+	span.Attributes().Insert("name", pdata.NewAttributeValueDouble(1.2))
+	span.Attributes().Insert("count", pdata.NewAttributeValueInt(2))
 
-	"github.com/DataDog/datadog-agent/pkg/trace/config"
-	"github.com/DataDog/datadog-agent/pkg/trace/pb"
-	"github.com/DataDog/datadog-agent/pkg/trace/pb/otlppb"
-	"github.com/DataDog/datadog-agent/pkg/trace/testutil"
-	"github.com/stretchr/testify/assert"
+	span.Events().EnsureCapacity(2)
+	event := span.Events().AppendEmpty()
+	event.SetTimestamp(pdata.Timestamp(123))
+	event.SetName("boom")
+	event.Attributes().Insert("key", pdata.NewAttributeValueString("Out of memory"))
+	event.Attributes().Insert("accuracy", pdata.NewAttributeValueDouble(2.4))
+	event.SetDroppedAttributesCount(2)
+
+	event = span.Events().AppendEmpty()
+	event.SetTimestamp(pdata.Timestamp(456))
+	event.SetName("exception")
+	event.Attributes().Insert("exception.message", pdata.NewAttributeValueString("Out of memory"))
+	event.Attributes().Insert("exception.type", pdata.NewAttributeValueString("mem"))
+	event.Attributes().Insert("exception.stacktrace", pdata.NewAttributeValueString("1/2/3"))
+	event.SetDroppedAttributesCount(2)
+
+	span.Status().SetCode(pdata.StatusCodeError)
+	span.Status().SetMessage("Error")
+
+	return span
+}
+
+func makeOTLPTestSpan(start uint64) pdata.Span { return configOTLPTestSpan(pdata.NewSpan(), start) }
+
+var (
+	otlpTestSpanID  = pdata.NewSpanID([8]byte{0x24, 0x0, 0x31, 0xea, 0xd7, 0x50, 0xe5, 0xf3})
+	otlpTestTraceID = pdata.NewTraceID([16]byte{0x72, 0xdf, 0x52, 0xa, 0xf2, 0xbd, 0xe7, 0xa5, 0x24, 0x0, 0x31, 0xea, 0xd7, 0x50, 0xe5, 0xf3})
 )
 
-func makeOTLPTestSpan(start uint64) *otlppb.Span {
-	return &otlppb.Span{
-		TraceId:           otlpTestID128,
-		SpanId:            otlpTestID128,
-		TraceState:        "state",
-		ParentSpanId:      []byte{0},
-		Name:              "/path",
-		Kind:              otlppb.Span_SPAN_KIND_SERVER,
-		StartTimeUnixNano: start,
-		EndTimeUnixNano:   start + 200000000,
-		Attributes: []*otlppb.KeyValue{
-			{Key: "name", Value: &otlppb.AnyValue{Value: &otlppb.AnyValue_StringValue{StringValue: "john"}}},
-			{Key: "name", Value: &otlppb.AnyValue{Value: &otlppb.AnyValue_DoubleValue{DoubleValue: 1.2}}},
-			{Key: "count", Value: &otlppb.AnyValue{Value: &otlppb.AnyValue_IntValue{IntValue: 2}}},
-		},
-		DroppedAttributesCount: 0,
-		Events: []*otlppb.Span_Event{
-			{
-				TimeUnixNano: 123,
-				Name:         "boom",
-				Attributes: []*otlppb.KeyValue{
-					{Key: "message", Value: &otlppb.AnyValue{Value: &otlppb.AnyValue_StringValue{StringValue: "Out of memory"}}},
-					{Key: "accuracy", Value: &otlppb.AnyValue{Value: &otlppb.AnyValue_DoubleValue{DoubleValue: 2.4}}},
-				},
-				DroppedAttributesCount: 2,
-			},
-			{
-				TimeUnixNano: 456,
-				Name:         "exception",
-				Attributes: []*otlppb.KeyValue{
-					{Key: "exception.message", Value: &otlppb.AnyValue{Value: &otlppb.AnyValue_StringValue{StringValue: "Out of memory"}}},
-					{Key: "exception.type", Value: &otlppb.AnyValue{Value: &otlppb.AnyValue_StringValue{StringValue: "mem"}}},
-					{Key: "exception.stacktrace", Value: &otlppb.AnyValue{Value: &otlppb.AnyValue_StringValue{StringValue: "1/2/3"}}},
-				},
-				DroppedAttributesCount: 2,
-			},
-		},
-		DroppedEventsCount: 0,
-		Links:              nil,
-		DroppedLinksCount:  0,
-		Status: &otlppb.Status{
-			Message: "Error",
-			Code:    otlppb.Status_STATUS_CODE_ERROR,
-		},
-	}
+func newTestTraceRequest() otlpgrpc.TracesRequest {
+	rspans := pdata.NewResourceSpansSlice()
+	rspans.EnsureCapacity(2)
+
+	rspan := rspans.AppendEmpty()
+	rspan.Resource().Attributes().Insert("service.name", pdata.NewAttributeValueString("mongodb"))
+	rspan.Resource().Attributes().Insert("binary", pdata.NewAttributeValueString("rundb"))
+	rspan.Resource().SetDroppedAttributesCount(2)
+	rspan.InstrumentationLibrarySpans().EnsureCapacity(1)
+	ilibspan := rspan.InstrumentationLibrarySpans().AppendEmpty()
+	ilibspan.InstrumentationLibrary().SetName("libname")
+	ilibspan.InstrumentationLibrary().SetVersion("v1.2.3")
+	ilibspan.Spans().EnsureCapacity(1)
+	configOTLPTestSpan(ilibspan.Spans().AppendEmpty(), time.Now().UnixNano())
+
+	rspan = rspans.AppendEmpty()
+	rspan.Resource().Attributes().Insert("service.name", pdata.NewAttributeValueString("pylons"))
+	rspan.Resource().Attributes().Insert("binary", pdata.NewAttributeValueString("runweb"))
+	rspan.Resource().SetDroppedAttributesCount(1)
+	rspan.InstrumentationLibrarySpans().EnsureCapacity(1)
+	ilibspan = rspan.InstrumentationLibrarySpans().AppendEmpty()
+	ilibspan.InstrumentationLibrary().SetName("othername")
+	ilibspan.InstrumentationLibrary().SetVersion("v1.2.0")
+	ilibspan.Spans().EnsureCapacity(1)
+	configOTLPTestSpan(ilibspan.Spans().AppendEmpty(), time.Now().UnixNano())
+
+	treq := otlpgrpc.NewTracesRequest()
+	treq.SetTraces(td)
+	return treq
 }
 
 var (
-	// otlpTestID128 is an Opentelemetry compatible 128-bit ID represented as a 16-element byte array.
-	otlpTestID128 = []byte{0x72, 0xdf, 0x52, 0xa, 0xf2, 0xbd, 0xe7, 0xa5, 0x24, 0x0, 0x31, 0xea, 0xd7, 0x50, 0xe5, 0xf3}
 	// otlpTestTraceServiceReq holds a basic trace request used for testing.
-	otlpTestTraceServiceReq = &otlppb.ExportTraceServiceRequest{
-		ResourceSpans: []*otlppb.ResourceSpans{
-			{
-				Resource: &otlppb.Resource{
-					Attributes: []*otlppb.KeyValue{
-						{Key: "service.name", Value: &otlppb.AnyValue{Value: &otlppb.AnyValue_StringValue{StringValue: "mongodb"}}},
-						{Key: "binary", Value: &otlppb.AnyValue{Value: &otlppb.AnyValue_StringValue{StringValue: "rundb"}}},
-					},
-					DroppedAttributesCount: 2,
-				},
-				InstrumentationLibrarySpans: []*otlppb.InstrumentationLibrarySpans{
-					{
-						InstrumentationLibrary: &otlppb.InstrumentationLibrary{
-							Name:    "libname",
-							Version: "v1.2.3",
-						},
-						Spans: []*otlppb.Span{makeOTLPTestSpan(uint64(time.Now().UnixNano()))},
-					},
-				},
-			},
-			{
-				Resource: &otlppb.Resource{
-					Attributes: []*otlppb.KeyValue{
-						{Key: "service.name", Value: &otlppb.AnyValue{Value: &otlppb.AnyValue_StringValue{StringValue: "pylons"}}},
-						{Key: "binary", Value: &otlppb.AnyValue{Value: &otlppb.AnyValue_StringValue{StringValue: "runweb"}}},
-					},
-					DroppedAttributesCount: 1,
-				},
-				InstrumentationLibrarySpans: []*otlppb.InstrumentationLibrarySpans{
-					{
-						InstrumentationLibrary: &otlppb.InstrumentationLibrary{
-							Name:    "othername",
-							Version: "v1.2.0",
-						},
-						Spans: []*otlppb.Span{makeOTLPTestSpan(uint64(time.Now().UnixNano()))},
-					},
-				},
-			},
-		},
-	}
+	otlpTestTraceServiceReq = newTestTraceRequest()
 )
 
 func TestOTLPReceiver(t *testing.T) {
@@ -200,37 +170,6 @@ func TestOTLPReceiver(t *testing.T) {
 }
 
 func TestOTLPHelpers(t *testing.T) {
-	t.Run("AnyValueString", func(t *testing.T) {
-		for in, out := range map[*otlppb.AnyValue]string{
-			{Value: &otlppb.AnyValue_StringValue{StringValue: "string"}}: "string",
-			{Value: &otlppb.AnyValue_BoolValue{BoolValue: true}}:         "true",
-			{Value: &otlppb.AnyValue_BoolValue{BoolValue: false}}:        "false",
-			{Value: &otlppb.AnyValue_IntValue{IntValue: 12}}:             "12",
-			{Value: &otlppb.AnyValue_DoubleValue{DoubleValue: 2.12345}}:  "2.12",
-			{Value: &otlppb.AnyValue_ArrayValue{
-				ArrayValue: &otlppb.ArrayValue{
-					Values: []*otlppb.AnyValue{
-						{Value: &otlppb.AnyValue_DoubleValue{DoubleValue: 2.12345}},
-						{Value: &otlppb.AnyValue_StringValue{StringValue: "string"}},
-						{Value: &otlppb.AnyValue_BoolValue{BoolValue: true}},
-					},
-				},
-			}}: "2.12,string,true",
-			{Value: &otlppb.AnyValue_KvlistValue{
-				KvlistValue: &otlppb.KeyValueList{
-					Values: []*otlppb.KeyValue{
-						{Key: "key1", Value: &otlppb.AnyValue{Value: &otlppb.AnyValue_BoolValue{BoolValue: true}}},
-						{Key: "key2", Value: &otlppb.AnyValue{Value: &otlppb.AnyValue_StringValue{StringValue: "string"}}},
-					},
-				},
-			}}: "key1:true,key2:string",
-		} {
-			t.Run("", func(t *testing.T) {
-				assert.Equal(t, out, anyValueString(in))
-			})
-		}
-	})
-
 	t.Run("byteArrayToUint64", func(t *testing.T) {
 		assert.Equal(t, uint64(0x240031ead750e5f3), byteArrayToUint64(otlpTestID128))
 		assert.Equal(t, uint64(0), byteArrayToUint64(nil))
@@ -239,14 +178,14 @@ func TestOTLPHelpers(t *testing.T) {
 	})
 
 	t.Run("spanKindNames", func(t *testing.T) {
-		for in, out := range map[otlppb.Span_SpanKind]string{
-			otlppb.Span_SPAN_KIND_UNSPECIFIED: "unspecified",
-			otlppb.Span_SPAN_KIND_INTERNAL:    "internal",
-			otlppb.Span_SPAN_KIND_SERVER:      "server",
-			otlppb.Span_SPAN_KIND_CLIENT:      "client",
-			otlppb.Span_SPAN_KIND_PRODUCER:    "producer",
-			otlppb.Span_SPAN_KIND_CONSUMER:    "consumer",
-			99:                                "unknown",
+		for in, out := range map[pdata.SpanKind]string{
+			pdata.SpanKindUnspecified: "unspecified",
+			pdata.SpanKindInternal:    "internal",
+			pdata.SpanKindServer:      "server",
+			pdata.SpanKindClient:      "client",
+			pdata.SpanKindProducer:    "producer",
+			pdata.SpanKindConsumer:    "consumer",
+			99:                        "unknown",
 		} {
 			assert.Equal(t, out, spanKindName(in))
 		}
@@ -395,47 +334,47 @@ func TestOTLPHelpers(t *testing.T) {
 
 	t.Run("spanKind2Type", func(t *testing.T) {
 		for _, tt := range []struct {
-			kind otlppb.Span_SpanKind
+			kind pdata.SpanKind
 			meta map[string]string
 			out  string
 		}{
 			{
-				kind: otlppb.Span_SPAN_KIND_SERVER,
+				kind: pdata.SpanKindServer,
 				out:  "web",
 			},
 			{
-				kind: otlppb.Span_SPAN_KIND_CLIENT,
+				kind: pdata.SpanKindClient,
 				out:  "http",
 			},
 			{
-				kind: otlppb.Span_SPAN_KIND_CLIENT,
+				kind: pdata.SpanKindClient,
 				meta: map[string]string{"db.system": "redis"},
 				out:  "cache",
 			},
 			{
-				kind: otlppb.Span_SPAN_KIND_CLIENT,
+				kind: pdata.SpanKindClient,
 				meta: map[string]string{"db.system": "memcached"},
 				out:  "cache",
 			},
 			{
-				kind: otlppb.Span_SPAN_KIND_CLIENT,
+				kind: pdata.SpanKindClient,
 				meta: map[string]string{"db.system": "other"},
 				out:  "db",
 			},
 			{
-				kind: otlppb.Span_SPAN_KIND_PRODUCER,
+				kind: pdata.SpanKindProducer,
 				out:  "custom",
 			},
 			{
-				kind: otlppb.Span_SPAN_KIND_CONSUMER,
+				kind: pdata.SpanKindConsumer,
 				out:  "custom",
 			},
 			{
-				kind: otlppb.Span_SPAN_KIND_INTERNAL,
+				kind: pdata.SpanKindInternal,
 				out:  "custom",
 			},
 			{
-				kind: otlppb.Span_SPAN_KIND_UNSPECIFIED,
+				kind: pdata.SpanKindUnspecified,
 				out:  "custom",
 			},
 		} {
@@ -910,3 +849,4 @@ func BenchmarkProcessRequest(b *testing.B) {
 	end <- struct{}{}
 	<-end
 }
+*/
