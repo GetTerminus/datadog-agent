@@ -22,7 +22,7 @@ var (
 	metadataURL      = "http://169.254.169.254"
 	tokenEndpoint    = "/instance_identity/v1/token?version=2022-03-08"
 	instanceEndpoint = "/metadata/v1/instance?version=2022-03-08"
-	timeout          = 3 * time.Second
+	timeout          = 10 * time.Second // Token endpoint is very slow sometimes
 
 	token *httputils.APIToken
 
