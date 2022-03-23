@@ -290,9 +290,6 @@ func InitConfig(config Config) {
 	config.BindEnvAndSetDefault("remote_configuration.refresh_interval", 1*time.Minute)
 	config.BindEnvAndSetDefault("remote_configuration.max_backoff_interval", 5*time.Minute)
 	config.BindEnvAndSetDefault("remote_configuration.clients.ttl_seconds", 30*time.Second)
-	// Remote config unstable features
-	config.BindEnvAndSetDefault("remote_configuration.unstable.self_signed", false)
-	config.BindEnvAndSetDefault("remote_configuration.unstable.self_signed_root", "")
 
 	// Auto exit configuration
 	config.BindEnvAndSetDefault("auto_exit.validation_period", 60)
@@ -582,7 +579,7 @@ func InitConfig(config Config) {
 	config.BindEnvAndSetDefault("cri_query_timeout", int64(5))      // in seconds
 
 	// Containerd
-	config.BindEnvAndSetDefault("containerd_namespace", "")
+	config.BindEnvAndSetDefault("containerd_namespace", []string{})
 	config.BindEnvAndSetDefault("containerd_namespaces", []string{}) // alias for containerd_namespace
 	config.BindEnvAndSetDefault("container_env_as_tags", map[string]string{})
 	config.BindEnvAndSetDefault("container_labels_as_tags", map[string]string{})
@@ -657,6 +654,7 @@ func InitConfig(config Config) {
 	config.BindEnvAndSetDefault("cluster_agent.server.write_timeout_seconds", 2)
 	config.BindEnvAndSetDefault("cluster_agent.server.idle_timeout_seconds", 60)
 	config.BindEnvAndSetDefault("cluster_agent.serve_nozzle_data", false)
+	config.BindEnvAndSetDefault("cluster_agent.advanced_tagging", false)
 	config.BindEnvAndSetDefault("metrics_port", "5000")
 
 	// Metadata endpoints
@@ -886,6 +884,9 @@ func InitConfig(config Config) {
 	config.BindEnvAndSetDefault("admission_controller.webhook_name", "datadog-webhook")
 	config.BindEnvAndSetDefault("admission_controller.inject_config.enabled", true)
 	config.BindEnvAndSetDefault("admission_controller.inject_config.endpoint", "/injectconfig")
+	config.BindEnvAndSetDefault("admission_controller.inject_config.mode", "hostip") // possible values: hostip / service / socket
+	config.BindEnvAndSetDefault("admission_controller.inject_config.local_service_name", "datadog")
+	config.BindEnvAndSetDefault("admission_controller.inject_config.socket_path", "/var/run/datadog")
 	config.BindEnvAndSetDefault("admission_controller.inject_tags.enabled", true)
 	config.BindEnvAndSetDefault("admission_controller.inject_tags.endpoint", "/injecttags")
 	config.BindEnvAndSetDefault("admission_controller.pod_owners_cache_validity", 10) // in minutes
