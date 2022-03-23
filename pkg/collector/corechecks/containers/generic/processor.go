@@ -16,6 +16,7 @@ import (
 	taggerUtils "github.com/DataDog/datadog-agent/pkg/tagger/utils"
 	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	"github.com/DataDog/datadog-agent/pkg/util/containers/v2/metrics"
+	"github.com/DataDog/datadog-agent/pkg/util/containers/v2/metrics/provider"
 	"github.com/DataDog/datadog-agent/pkg/util/pointer"
 	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
 )
@@ -71,6 +72,7 @@ func (p *Processor) Run(sender aggregator.Sender, cacheValidity time.Duration) e
 		}
 		return collector
 	}
+	metaCollector := p.metricsProvider.GetMetaCollector()
 
 	// Extensions: PreProcess hook
 	for _, extension := range p.extensions {
@@ -108,7 +110,7 @@ func (p *Processor) Run(sender aggregator.Sender, cacheValidity time.Duration) e
 			continue
 		}
 
-		if err := p.processContainer(sender, tags, container, containerStats); err != nil {
+		if err := p.processContainer(sender, tags, container, containerStats, metaCollector); err != nil {
 			log.Debugf("Generating metrics for container: %v failed, metrics may be missing, err: %v", container, err)
 			continue
 		}
@@ -130,7 +132,7 @@ func (p *Processor) Run(sender aggregator.Sender, cacheValidity time.Duration) e
 	return nil
 }
 
-func (p *Processor) processContainer(sender aggregator.Sender, tags []string, container *workloadmeta.Container, containerStats *metrics.ContainerStats) error {
+func (p *Processor) processContainer(sender aggregator.Sender, tags []string, container *workloadmeta.Container, containerStats *metrics.ContainerStats, metaCollector provider.MetaCollector) error {
 	if uptime := time.Since(container.State.StartedAt); uptime > 0 {
 		p.sendMetric(sender.Gauge, "container.uptime", pointer.Float64Ptr(uptime.Seconds()), tags)
 	}
@@ -181,7 +183,11 @@ func (p *Processor) processContainer(sender aggregator.Sender, tags []string, co
 	if containerStats.PID != nil {
 		p.sendMetric(sender.Gauge, "container.pid.thread_count", containerStats.PID.ThreadCount, tags)
 		p.sendMetric(sender.Gauge, "container.pid.thread_limit", containerStats.PID.ThreadLimit, tags)
-		p.sendMetric(sender.Gauge, "container.pid.open_files", containerStats.PID.OpenFiles, tags)
+
+		openFiles, err := metaCollector.GetContainerOpenFilesCount(containerStats.PID.PIDs, cacheValidity)
+		if err != nil {
+			p.sendMetric(sender.Gauge, "container.pid.open_files", pointer.UIntPtrToFloatPtr(openFiles), tags)
+		}
 	}
 
 	return nil

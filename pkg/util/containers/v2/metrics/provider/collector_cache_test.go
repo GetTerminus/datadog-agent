@@ -41,6 +41,10 @@ func TestCollectorCache(t *testing.T) {
 			1: "cID1",
 			2: "cID2",
 		},
+		openFDsForPID: map[int]uint64{
+			1: 10,
+			2: 20,
+		},
 	}
 
 	collectorCache := NewCollectorCache(actualCollector)
@@ -70,12 +74,18 @@ func TestCollectorCache(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "cID2", cID2)
 
+	openFDs1, err := collectorCache.GetContainerOpenFilesCount([]int{1, 2}, time.Minute)
+	assert.NoError(t, err)
+	assert.EqualValues(t, 30, *openFDs1)
+
 	// Changing underlying source
 	actualCollector.cStats["cID1"] = &ContainerStats{
 		CPU: &ContainerCPUStats{
 			Total: pointer.Float64Ptr(150),
 		},
 	}
+	actualCollector.openFDsForPID[1] = 50
+
 	actualCollector.cStats["cID2"] = &ContainerStats{
 		CPU: &ContainerCPUStats{
 			Total: pointer.Float64Ptr(250),
@@ -93,6 +103,11 @@ func TestCollectorCache(t *testing.T) {
 	ncStats, err = collectorCache.GetContainerNetworkStats("cID1", time.Minute)
 	assert.NoError(t, err)
 	assert.Equal(t, 110.0, *ncStats.BytesSent)
+
+	// No cache for FDs
+	openFDs1, err = collectorCache.GetContainerOpenFilesCount([]int{1, 2}, time.Minute)
+	assert.NoError(t, err)
+	assert.EqualValues(t, 70, *openFDs1)
 
 	// Force refresh
 	cStats2, err = collectorCache.GetContainerStats("cID2", 0)

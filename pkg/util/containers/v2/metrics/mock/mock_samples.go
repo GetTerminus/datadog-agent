@@ -74,7 +74,6 @@ func GetFullSampleContainerEntry() ContainerEntry {
 				PIDs:        []int{4, 2},
 				ThreadCount: pointer.Float64Ptr(10),
 				ThreadLimit: pointer.Float64Ptr(20),
-				OpenFiles:   pointer.Float64Ptr(200),
 			},
 		},
 	}

@@ -90,6 +90,12 @@ func (kc *kubeletCollector) GetSelfContainerID() (string, error) {
 	return "", nil
 }
 
+// GetContainerOpenFilesCount returns the count of all open FDs by PIDs
+func (kc *kubeletCollector) GetContainerOpenFilesCount(pids []int, cacheValidity time.Duration) (*uint64, error) {
+	// Not available
+	return nil, nil
+}
+
 // GetContainerStats returns stats by container ID.
 func (kc *kubeletCollector) GetContainerStats(containerID string, cacheValidity time.Duration) (*provider.ContainerStats, error) {
 	currentTime := time.Now()

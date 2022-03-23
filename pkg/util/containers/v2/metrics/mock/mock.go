@@ -130,3 +130,8 @@ func (mp *Collector) GetContainerIDForPID(pid int, cacheValidity time.Duration) 
 func (mp *Collector) GetSelfContainerID() (string, error) {
 	return "", nil
 }
+
+// GetContainerOpenFilesCount returns the sum of open FDs given a list of PIDs.
+func (mp *Collector) GetContainerOpenFilesCount(pids []int, cacheValidity time.Duration) (*uint64, error) {
+	return nil, nil
+}

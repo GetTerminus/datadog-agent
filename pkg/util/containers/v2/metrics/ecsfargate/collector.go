@@ -108,6 +108,12 @@ func (e *ecsFargateCollector) GetSelfContainerID() (string, error) {
 	return "", nil
 }
 
+// GetContainerOpenFilesCount returns the count of all open FDs by PIDs
+func (e *ecsFargateCollector) GetContainerOpenFilesCount(pids []int, cacheValidity time.Duration) (*uint64, error) {
+	// Not available
+	return nil, nil
+}
+
 // stats returns stats by container ID, it uses an in-memory cache to reduce the number of api calls.
 // Cache expires every 2 minutes and can also be invalidated using the cacheValidity argument.
 func (e *ecsFargateCollector) stats(containerID string) (*v2.ContainerStats, error) {

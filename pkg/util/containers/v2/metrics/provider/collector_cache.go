@@ -14,6 +14,7 @@ const (
 	contStatsCachePrefix    = "cs-"
 	contNetStatsCachePrefix = "cns-"
 	contPidToCidCachePrefix = "pid-"
+	contOpenFDsCachePrefix  = "fd-"
 
 	cacheGCInterval = 30 * time.Second
 )
@@ -118,6 +119,13 @@ func (cc *collectorCache) GetContainerIDForPID(pid int, cacheValidity time.Durat
 
 	cc.cache.Store(currentTime, cacheKey, val, nil)
 	return val, nil
+}
+
+// GetContainerOpenFilesCount returns sum of open FDs for given pids.
+// Currently no caching is done as this call has a limited use case
+// and building a cache key from []int is expensive.
+func (cc *collectorCache) GetContainerOpenFilesCount(pids []int, cacheValidity time.Duration) (*uint64, error) {
+	return cc.collector.GetContainerOpenFilesCount(pids, cacheValidity)
 }
 
 // GetSelfContainerID returns current process container ID

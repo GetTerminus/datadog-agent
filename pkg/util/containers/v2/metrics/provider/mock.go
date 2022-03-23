@@ -14,6 +14,7 @@ type dummyCollector struct {
 	cStats          map[string]*ContainerStats
 	cNetStats       map[string]*ContainerNetworkStats
 	cIDForPID       map[int]string
+	openFDsForPID   map[int]uint64
 	selfContainerID string
 	err             error
 }
@@ -35,5 +36,24 @@ func (d dummyCollector) GetContainerIDForPID(pid int, cacheValidity time.Duratio
 }
 
 func (d dummyCollector) GetSelfContainerID() (string, error) {
-	return d.selfContainerID, nil
+	return d.selfContainerID, d.err
+}
+
+func (d dummyCollector) GetContainerOpenFilesCount(pids []int, cacheValidity time.Duration) (*uint64, error) {
+	var sum uint64
+	var oneFound bool
+
+	for _, pid := range pids {
+		count, found := d.openFDsForPID[pid]
+		if found {
+			oneFound = true
+			sum += count
+		}
+	}
+
+	if oneFound {
+		return &sum, d.err
+	}
+
+	return nil, d.err
 }

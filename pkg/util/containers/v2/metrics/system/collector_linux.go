@@ -120,6 +120,20 @@ func (c *systemCollector) GetSelfContainerID() (string, error) {
 	return containerID, err
 }
 
+func (c *systemCollector) GetContainerOpenFilesCount(pids []int, cacheValidity time.Duration) (*uint64, error) {
+	if len(pids) == 0 {
+		return nil, nil
+	}
+
+	count, allFailed := systemutils.CountProcessesFileDescriptors(c.procPath, pids)
+	if !allFailed {
+		return &count, nil
+	}
+
+	log.Debugf("Reading file descriptors failed for all PIDs, OpenFDs metric will be missing")
+	return nil, nil
+}
+
 func (c *systemCollector) getCgroup(containerID string, cacheValidity time.Duration) (cgroups.Cgroup, error) {
 	cg := c.reader.GetCgroup(containerID)
 	if cg == nil {
@@ -160,12 +174,6 @@ func (c *systemCollector) buildContainerMetrics(cg cgroups.Cgroup, cacheValidity
 	cs.PID.PIDs, err = cg.GetPIDs(cacheValidity)
 	if err != nil {
 		log.Debugf("Unable to get PIDs for cgroup id: %s. Metrics will be missing", cg.Identifier())
-	}
-
-	// Get OpenFDs
-	count, allFailed := systemutils.CountProcessesFileDescriptors(c.procPath, cs.PID.PIDs)
-	if !allFailed {
-		convertField(&count, &cs.PID.OpenFiles)
 	}
 
 	return cs, nil

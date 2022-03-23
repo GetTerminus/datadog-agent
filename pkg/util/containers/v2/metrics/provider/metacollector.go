@@ -16,6 +16,10 @@ type MetaCollector interface {
 	// GetSelfContainerID returns the container ID for current container.
 	// ("", nil) will be returned if not possible to get ID for current container.
 	GetSelfContainerID() (string, error)
+
+	// GetContainerOpenFilesCount returns the sum of open FDs given a list of PIDs.
+	// The list of PIDs can be retrieved through GetContainerStats interface.
+	GetContainerOpenFilesCount(pids []int, cacheValidity time.Duration) (*uint64, error)
 }
 
 type metaCollector struct {
@@ -58,6 +62,22 @@ func (mc *metaCollector) GetSelfContainerID() (string, error) {
 	}
 
 	return "", nil
+}
+
+// GetOpenFDs returns the sum of OpenFiles
+func (mc *metaCollector) GetContainerOpenFilesCount(pids []int, cacheValidity time.Duration) (*uint64, error) {
+	for _, collector := range mc.orderedCollectorLister() {
+		val, err := collector.collector.GetContainerOpenFilesCount(pids, cacheValidity)
+		if err != nil {
+			return nil, err
+		}
+
+		if val != nil {
+			return val, nil
+		}
+	}
+
+	return nil, nil
 }
 
 // Not implemented as metaCollector implements Collector interface to allow wrapping in collectorCache

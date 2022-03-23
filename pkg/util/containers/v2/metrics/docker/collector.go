@@ -139,6 +139,12 @@ func (d *dockerCollector) GetSelfContainerID() (string, error) {
 	return "", nil
 }
 
+// GetContainerOpenFilesCount returns the count of all open FDs by PIDs
+func (d *dockerCollector) GetContainerOpenFilesCount(pids []int, cacheValidity time.Duration) (*uint64, error) {
+	// Not available
+	return nil, nil
+}
+
 // stats returns stats by container ID
 func (d *dockerCollector) stats(containerID string) (*types.StatsJSON, error) {
 	stats, err := d.du.GetContainerStats(context.TODO(), containerID)

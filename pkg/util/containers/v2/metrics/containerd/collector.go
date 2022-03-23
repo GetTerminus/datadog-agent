@@ -169,6 +169,12 @@ func (c *containerdCollector) GetSelfContainerID() (string, error) {
 	return "", nil
 }
 
+// GetContainerOpenFilesCount returns the count of all open FDs by PIDs
+func (c *containerdCollector) GetContainerOpenFilesCount(pids []int, cacheValidity time.Duration) (*uint64, error) {
+	// Not available
+	return nil, nil
+}
+
 // This method returns interface{} because the metrics could be an instance of
 // v1.Metrics (for Linux) or stats.Statistics (Windows) and they don't share a
 // common interface.

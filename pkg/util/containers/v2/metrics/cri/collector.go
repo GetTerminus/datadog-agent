@@ -93,6 +93,12 @@ func (collector *criCollector) GetSelfContainerID() (string, error) {
 	return "", nil
 }
 
+// GetContainerOpenFilesCount returns the count of all open FDs by PIDs
+func (collector *criCollector) GetContainerOpenFilesCount(pids []int, cacheValidity time.Duration) (*uint64, error) {
+	// Not available
+	return nil, nil
+}
+
 func (collector *criCollector) getCriContainerStats(containerID string) (*v1alpha2.ContainerStats, error) {
 	stats, err := collector.client.GetContainerStats(containerID)
 	if err != nil {
